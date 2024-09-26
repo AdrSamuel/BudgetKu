@@ -35,7 +35,7 @@ export default function Layout() {
           }}
         />
         <Drawer.Screen
-          name="settings"
+          name="currency"
           options={{
             drawerLabel: "Currency",
             title: "BudgetKu",

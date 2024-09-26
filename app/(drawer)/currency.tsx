@@ -4,7 +4,7 @@ import React from "react";
 const setting = () => {
   return (
     <View>
-      <Text>SHEEESSH</Text>
+      <Text>Currency</Text>
     </View>
   );
 };

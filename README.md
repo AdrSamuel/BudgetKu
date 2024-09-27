@@ -2,15 +2,37 @@
 
 ## Get started
 
-1. Install dependencies
+1. Install git
 
    ```bash
-   npm install
+   https://git-scm.com/downloads
    ```
 
-2. Start the app
+2. Clone this app to a dictionary
 
    ```bash
+    git clone https://github.com/AdrSamuel/BudgetKu.git
+   ```
+
+3. Have a node
+
+   ```bash
+    https://github.com/coreybutler/nvm-windows#readme
+
+    nvm install lts
+
+    nvm use lts
+   ```
+
+4. Download expo
+
+   ```
+    npm install expo
+   ```
+
+5. Run on your Expo Go
+
+   ```
     npx expo start
    ```
 

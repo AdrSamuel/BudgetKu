@@ -4,6 +4,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 
 export default function Index() {
+  const num = 500000;
+  const rupiah = new Intl.NumberFormat("id-ID", {
+    currency: "IDR",
+    style: "currency",
+    // currencyDisplay: "code",
+  });
+  const f = new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    style: "currency",
+    // currencyDisplay: "code",
+  });
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: Colors["dark"].background }]}
@@ -15,11 +27,11 @@ export default function Index() {
             <View style={styles.titleBott}>
               <View style={styles.detailsRow}>
                 <Text style={styles.details}>Income : </Text>
-                <Text style={styles.detailsGreen}>Rp500.000,00</Text>
+                <Text style={styles.detailsGreen}>{f.format(num)}</Text>
               </View>
               <View style={styles.detailsRow}>
                 <Text style={styles.details}>Expense : </Text>
-                <Text style={styles.detailsRed}>Rp200.000,00</Text>
+                <Text style={styles.detailsRed}>{rupiah.format(200000)}</Text>
               </View>
             </View>
           </View>

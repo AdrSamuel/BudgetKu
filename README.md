@@ -1,5 +1,18 @@
 # BudgetKu - Your Personalize Finance App
 
+BudgetKu is your simple, intuitive, and powerful personal finance management app designed to help you track your income, expenses, and budget effortlessly. With advanced tagging and categorization features, BudgetKu provides personalized insights into your daily, weekly, and monthly spending habits.
+
+## Key Features
+
+1. Add Income & Expense
+   Easily log your income and expenses. Track your spending and savings in real-time.
+
+2. Monthly Budget
+   Set a monthly budget and get notified when you're close to your spending limit. Stay on top of your finances by understanding your spending trends.
+
+3. Tags for Easy Categorization
+   Organize your expenses with customizable tags. Whether it's groceries, entertainment, or bills, add tags to each transaction for clearer insights.
+
 ## Get started
 
 1. Install git

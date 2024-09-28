@@ -9,7 +9,7 @@ export default function Analytic() {
       style={[styles.container, { backgroundColor: Colors["dark"].background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.content}>ini analityc page</Text>
+        <Text style={styles.content}>Ini analytic page</Text>
       </ScrollView>
     </SafeAreaView>
   );

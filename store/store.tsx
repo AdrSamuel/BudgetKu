@@ -36,6 +36,7 @@ interface StoreState {
   transactions: Transaction[];
   budgets: Budget;
   tags: string[];
+  selectedCurrency: string;
   addTransaction: (transaction: Omit<Transaction, "id">) => void;
   editTransaction: (
     id: number,
@@ -43,6 +44,7 @@ interface StoreState {
   ) => void;
   deleteTransaction: (id: number) => void;
   setBudget: (month: string, amount: number) => void;
+  setCurrency: (currency: string) => void;
   addTag: (tag: string) => void;
   getTransactionsByPeriod: (period: Period) => Transaction[];
   getAnalytics: (period: Period) => Analytics;
@@ -61,6 +63,7 @@ type StoreActions = Pick<
   | "getAnalytics"
   | "getBudgetProgress"
   | "getTransactionsByTag"
+  | "setCurrency"
 >;
 
 // Persist options type
@@ -76,6 +79,9 @@ const useStore = create<StoreState>()(
       transactions: [],
       budgets: {},
       tags: [],
+      selectedCurrency: "",
+
+      setCurrency: (currency) => set({ selectedCurrency: currency }),
 
       addTransaction: (transaction: Omit<Transaction, "id">) =>
         set((state) => ({

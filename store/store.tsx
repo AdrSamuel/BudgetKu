@@ -46,6 +46,9 @@ interface StoreState {
   setBudget: (month: string, amount: number) => void;
   setCurrency: (currency: string) => void;
   addTag: (tag: string) => void;
+  editTag: (oldTag: string, newTag: string) => void;
+  deleteTag: (tag: string) => void;
+  getTags: () => string[];
   getTransactionsByPeriod: (period: Period) => Transaction[];
   getAnalytics: (period: Period) => Analytics;
   getBudgetProgress: (month: string) => BudgetProgress;
@@ -59,6 +62,9 @@ type StoreActions = Pick<
   | "deleteTransaction"
   | "setBudget"
   | "addTag"
+  | "editTag"
+  | "deleteTag"
+  | "getTags"
   | "getTransactionsByPeriod"
   | "getAnalytics"
   | "getBudgetProgress"
@@ -112,6 +118,26 @@ const useStore = create<StoreState>()(
         set((state) => ({
           tags: [...state.tags, tag],
         })),
+
+      editTag: (oldTag: string, newTag: string) =>
+        set((state) => ({
+          tags: state.tags.map((t) => (t === oldTag ? newTag : t)),
+          transactions: state.transactions.map((transaction) => ({
+            ...transaction,
+            tags: transaction.tags.map((t) => (t === oldTag ? newTag : t)),
+          })),
+        })),
+
+      deleteTag: (tag: string) =>
+        set((state) => ({
+          tags: state.tags.filter((t) => t !== tag),
+          transactions: state.transactions.map((transaction) => ({
+            ...transaction,
+            tags: transaction.tags.filter((t) => t !== tag),
+          })),
+        })),
+
+      getTags: () => get().tags,
 
       getTransactionsByPeriod: (period: Period) => {
         const { transactions } = get();

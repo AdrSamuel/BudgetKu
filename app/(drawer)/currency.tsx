@@ -21,8 +21,16 @@ const CurrencyChooser = () => {
           onValueChange={(itemValue) => setCurrency(itemValue)}
           style={styles.picker}
         >
-          <Picker.Item label="Indonesian Rupiah (IDR)" value="IDR" />
-          <Picker.Item label="US Dollar (USD)" value="USD" />
+          <Picker.Item
+            label="Indonesian Rupiah (IDR)"
+            value="IDR"
+            style={styles.pickerItem}
+          />
+          <Picker.Item
+            label="US Dollar (USD)"
+            value="USD"
+            style={styles.pickerItem}
+          />
           {/* <Picker.Item label="Euro (EUR)" value="EUR" /> */}
           {/* Add more currencies as needed */}
         </Picker>
@@ -44,10 +52,16 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans",
   },
   picker: {
-    height: 50,
+    // height: 50,
     width: "100%",
-    // marginBottom: 16,
+    marginBottom: 16,
     color: "#fbf1c7",
+    fontFamily: "PlusJakartaSans",
+    backgroundColor: "#665c54",
+  },
+  pickerItem: {
+    // backgroundColor: "#665c54",
+    // color: "#fbf1c7",
     fontFamily: "PlusJakartaSans",
   },
   selectedCurrency: {

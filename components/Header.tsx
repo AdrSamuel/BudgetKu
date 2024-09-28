@@ -11,27 +11,6 @@ const Header = () => {
       getAnalytics: (period: string) => any;
       selectedCurrency: "IDR" | "USD";
     };
-
-  const handleAddIncome = () => {
-    addTransaction({
-      type: "income",
-      amount: -100,
-      category: "Salary",
-      date: new Date().toISOString(),
-      tags: ["work"],
-    });
-  };
-
-  const handleAddExpense = () => {
-    addTransaction({
-      type: "expense",
-      amount: -100,
-      category: "Food",
-      date: new Date().toISOString(),
-      tags: ["work"],
-    });
-  };
-
   const now = new Date();
   const month = now.toLocaleString("default", { month: "long" }); // e.g., "September"
   const year = now.getFullYear(); // e.g., 2024
@@ -93,6 +72,9 @@ const styles = StyleSheet.create({
   },
   detailsRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center", // Align the text vertically in the center
+    marginBottom: 5,
   },
   detailsRed: {
     fontFamily: "PlusJakartaSans",
@@ -113,5 +95,6 @@ const styles = StyleSheet.create({
     color: "#fbf1c7",
     fontSize: 16,
     padding: 10,
+    paddingTop: 0,
   },
 });

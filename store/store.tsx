@@ -36,8 +36,10 @@ interface StoreState {
   transactions: Transaction[];
   budgets: Budget;
   tags: string[];
+  currentDate: string;
   selectedCurrency: string;
   selectedPeriod: Period;
+
   addTransaction: (transaction: Omit<Transaction, "id">) => void;
   editTransaction: (
     id: number,
@@ -51,8 +53,11 @@ interface StoreState {
   editTag: (oldTag: string, newTag: string) => void;
   deleteTag: (tag: string) => void;
   getTags: () => string[];
-  getTransactionsByPeriod: (period: Period) => Transaction[];
-  getAnalytics: (period: Period) => Analytics;
+  getTransactionsByPeriod: (
+    period: Period,
+    currentDate: string
+  ) => Transaction[];
+  getAnalytics: (period: Period, currentDate: string) => Analytics;
   getBudgetProgress: (month: string) => BudgetProgress;
   getTransactionsByTag: (tag: string) => Transaction[];
 }
@@ -87,6 +92,7 @@ const useStore = create<StoreState>()(
       transactions: [],
       budgets: {},
       tags: [],
+      currentDate: new Date().toISOString(),
       selectedCurrency: "",
       selectedPeriod: "month",
 
@@ -131,28 +137,41 @@ const useStore = create<StoreState>()(
 
       getTags: () => get().tags,
 
-      getTransactionsByPeriod: (period) => {
+      getTransactionsByPeriod: (period: Period, currentDate: string) => {
         const { transactions } = get();
-        const now = new Date();
-        let startDate = new Date(now);
+        const startDate = new Date(currentDate);
+        let endDate = new Date(currentDate);
 
         switch (period) {
           case "day":
             startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(23, 59, 59, 999);
             break;
           case "week":
-            startDate.setDate(now.getDate() - now.getDay());
+            const { monday, sunday } = getWeekDates(startDate);
             startDate.setHours(0, 0, 0, 0);
+            startDate.setDate(monday.getDate());
+            endDate.setDate(sunday.getDate());
             break;
           case "month":
             startDate.setDate(1);
             startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(
+              startDate.getFullYear(),
+              startDate.getMonth() + 1,
+              0,
+              23,
+              59,
+              59,
+              999
+            );
             break;
-          default:
-            return transactions;
         }
 
-        return transactions.filter((t) => new Date(t.date) >= startDate);
+        return transactions.filter((t) => {
+          const transactionDate = new Date(t.date);
+          return transactionDate >= startDate && transactionDate <= endDate;
+        });
       },
 
       deleteTransaction: (id) =>
@@ -160,7 +179,6 @@ const useStore = create<StoreState>()(
           transactions: state.transactions.filter((t) => t.id !== id),
         })),
 
-      // Modified to accept a full transaction object
       editTransaction: (id, updatedTransaction) =>
         set((state) => ({
           transactions: state.transactions.map((t) =>
@@ -168,8 +186,8 @@ const useStore = create<StoreState>()(
           ),
         })),
 
-      getAnalytics: (period: Period) => {
-        const transactions = get().getTransactionsByPeriod(period);
+      getAnalytics: (period: Period, currentDate: string) => {
+        const transactions = get().getTransactionsByPeriod(period, currentDate);
         const totalIncome = transactions
           .filter((t) => t.type === "income")
           .reduce((sum, t) => sum + t.amount, 0);
@@ -206,5 +224,13 @@ const useStore = create<StoreState>()(
     }
   )
 );
+// Helper function to get the start and end dates of the week
+function getWeekDates(date: Date) {
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  const monday = new Date(date.setDate(diff));
+  const sunday = new Date(date.setDate(diff + 6));
+  return { monday, sunday };
+}
 
 export default useStore;

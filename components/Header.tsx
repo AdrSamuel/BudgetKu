@@ -7,29 +7,35 @@ import {
   Modal,
   FlatList,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import useStore from "@/store/store";
 import { Ionicons } from "@expo/vector-icons";
+import AddIncomeExpense from "./AddIncomeExpense";
+import History from "./History";
 
 type Period = "day" | "week" | "month";
 
-const Header = () => {
-  const {
-    getAnalytics,
-    selectedCurrency,
-    setCurrency,
-    selectedPeriod,
-    setSelectedPeriod,
-  } = useStore();
-  // const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+const Header = ({
+  currentDate,
+  setCurrentDate,
+  selectedPeriod,
+  setSelectedPeriod,
+}: {
+  currentDate: Date;
+  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  selectedPeriod: Period;
+  setSelectedPeriod: React.Dispatch<React.SetStateAction<Period>>;
+}) => {
+  const { getAnalytics, selectedCurrency, setCurrency } = useStore();
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // const [currentDate, setCurrentDate] = useState(new Date());
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnalytics = () => {
     try {
-      const data = getAnalytics(selectedPeriod);
+      const data = getAnalytics(selectedPeriod, currentDate.toISOString());
       setAnalyticsData(data);
       setError(null);
     } catch (err) {
@@ -40,7 +46,7 @@ const Header = () => {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, currentDate]);
 
   useEffect(() => {
     if (!selectedCurrency) {
@@ -49,10 +55,12 @@ const Header = () => {
   }, [selectedCurrency, setCurrency]);
 
   const getWeekDates = (date: Date) => {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    const monday = new Date(date.setDate(diff));
-    const sunday = new Date(date.setDate(diff + 6));
+    const day = date.getDay(); // 0 for Sunday, 1 for Monday, etc.
+    const diff = day === 0 ? -6 : 1 - day; // Adjust for Sunday
+    const monday = new Date(date);
+    monday.setDate(monday.getDate() + diff); // Set to Monday
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6); // Set to Sunday
     return { monday, sunday };
   };
 
@@ -199,9 +207,19 @@ ${sunday.toLocaleDateString("en-US", options)}`;
 };
 
 const IndexPage = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+
   return (
     <SafeAreaView style={styles.container}>
-      <Header />
+      <Header
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        selectedPeriod={selectedPeriod}
+        setSelectedPeriod={setSelectedPeriod}
+      />
+      <AddIncomeExpense />
+      <History currentDate={currentDate} selectedPeriod={selectedPeriod} />
     </SafeAreaView>
   );
 };

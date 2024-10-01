@@ -10,19 +10,32 @@ import {
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import useStore from "@/store/store";
+import {
+  startOfDay,
+  startOfWeek,
+  startOfMonth,
+  endOfDay,
+  endOfWeek,
+  endOfMonth,
+} from "date-fns";
 
 type TransactionType = "income" | "expense";
 type Period = "day" | "week" | "month";
 
-const History = () => {
+const History = ({
+  currentDate,
+  selectedPeriod,
+}: {
+  currentDate: Date;
+  selectedPeriod: Period;
+}) => {
   const {
     getTransactionsByPeriod,
     editTransaction,
     deleteTransaction,
-    tags,
     selectedCurrency,
-    selectedPeriod,
   } = useStore();
+
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<{
@@ -32,18 +45,36 @@ const History = () => {
     date: string;
     type: string;
   } | null>(null);
+
   const [editedAmount, setEditedAmount] = useState("");
   const [editedTag, setEditedTag] = useState("");
   const [transactions, setTransactions] = useState<any[]>([]);
 
+  const getStartAndEndDate = (period: Period, currentDate: string) => {
+    const date = new Date(currentDate);
+    switch (period) {
+      case "day":
+        return [startOfDay(date), endOfDay(date)];
+      case "week":
+        return [startOfWeek(date), endOfWeek(date)];
+      case "month":
+        return [startOfMonth(date), endOfMonth(date)];
+      default:
+        return [startOfDay(date), endOfDay(date)];
+    }
+  };
+
   const fetchTransactions = async () => {
-    const fetchedTransactions = await getTransactionsByPeriod(selectedPeriod);
+    const fetchedTransactions = await getTransactionsByPeriod(
+      selectedPeriod,
+      currentDate.toISOString()
+    );
     setTransactions(fetchedTransactions);
   };
 
   useEffect(() => {
     fetchTransactions();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, currentDate]);
 
   const handleEdit = (transaction: {
     id: number;
@@ -274,7 +305,7 @@ const History = () => {
   );
 };
 
-// export default History;
+export default History;
 
 const styles = StyleSheet.create({
   container: {
@@ -390,5 +421,3 @@ const styles = StyleSheet.create({
     color: "#b8bb26",
   },
 });
-
-export default History;

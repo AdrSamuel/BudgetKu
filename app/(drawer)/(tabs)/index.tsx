@@ -13,8 +13,6 @@ export default function Index() {
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Header />
-        <AddIncomeExpense />
-        <History />
       </ScrollView>
     </SafeAreaProvider>
   );

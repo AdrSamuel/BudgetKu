@@ -14,14 +14,20 @@ import { Ionicons } from "@expo/vector-icons";
 type Period = "day" | "week" | "month";
 
 const Header = () => {
-  const { getAnalytics, selectedCurrency, setCurrency } = useStore();
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+  const {
+    getAnalytics,
+    selectedCurrency,
+    setCurrency,
+    selectedPeriod,
+    setSelectedPeriod,
+  } = useStore();
+  // const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
   const [modalVisible, setModalVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchAnalytics = () => {
     try {
       const data = getAnalytics(selectedPeriod);
       setAnalyticsData(data);
@@ -30,11 +36,15 @@ const Header = () => {
       console.error("Error fetching analytics:", err);
       setError("Failed to fetch analytics data");
     }
-  }, [selectedPeriod, getAnalytics]);
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [selectedPeriod]);
 
   useEffect(() => {
     if (!selectedCurrency) {
-      setCurrency("USD");
+      setCurrency("IDR");
     }
   }, [selectedCurrency, setCurrency]);
 
@@ -50,8 +60,8 @@ const Header = () => {
     const options: Intl.DateTimeFormatOptions = {
       year: "numeric",
       month: "short",
-      day: "numeric",
       weekday: "short",
+      day: "numeric",
     };
 
     if (period === "week") {
@@ -202,7 +212,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#282828",
   },
   header: {
-    paddingHorizontal: 20,
+    padding: 20,
+    // paddingBottom: 10,
   },
   dateSelector: {
     flexDirection: "row",

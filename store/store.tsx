@@ -37,6 +37,7 @@ interface StoreState {
   budgets: Budget;
   tags: string[];
   selectedCurrency: string;
+  selectedPeriod: Period;
   addTransaction: (transaction: Omit<Transaction, "id">) => void;
   editTransaction: (
     id: number,
@@ -45,6 +46,7 @@ interface StoreState {
   deleteTransaction: (id: number) => void;
   setBudget: (month: string, amount: number) => void;
   setCurrency: (currency: string) => void;
+  setSelectedPeriod: (period: Period) => void;
   addTag: (tag: string) => void;
   editTag: (oldTag: string, newTag: string) => void;
   deleteTag: (tag: string) => void;
@@ -86,8 +88,10 @@ const useStore = create<StoreState>()(
       budgets: {},
       tags: [],
       selectedCurrency: "",
+      selectedPeriod: "month",
 
       setCurrency: (currency) => set({ selectedCurrency: currency }),
+      setSelectedPeriod: (period) => set({ selectedPeriod: period }),
 
       addTransaction: (transaction: Omit<Transaction, "id">) =>
         set((state) => ({
@@ -95,18 +99,6 @@ const useStore = create<StoreState>()(
             ...state.transactions,
             { ...transaction, id: Date.now() },
           ],
-        })),
-
-      editTransaction: (id: number, updatedTransaction: Partial<Transaction>) =>
-        set((state) => ({
-          transactions: state.transactions.map((t) =>
-            t.id === id ? { ...t, ...updatedTransaction } : t
-          ),
-        })),
-
-      deleteTransaction: (id: number) =>
-        set((state) => ({
-          transactions: state.transactions.filter((t) => t.id !== id),
         })),
 
       setBudget: (month: string, amount: number) =>
@@ -139,20 +131,22 @@ const useStore = create<StoreState>()(
 
       getTags: () => get().tags,
 
-      getTransactionsByPeriod: (period: Period) => {
+      getTransactionsByPeriod: (period) => {
         const { transactions } = get();
         const now = new Date();
-        let startDate: Date;
+        let startDate = new Date(now);
 
         switch (period) {
           case "day":
-            startDate = new Date(now.setHours(0, 0, 0, 0));
+            startDate.setHours(0, 0, 0, 0);
             break;
           case "week":
-            startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+            startDate.setDate(now.getDate() - now.getDay());
+            startDate.setHours(0, 0, 0, 0);
             break;
           case "month":
-            startDate = new Date(now.setDate(1));
+            startDate.setDate(1);
+            startDate.setHours(0, 0, 0, 0);
             break;
           default:
             return transactions;
@@ -160,6 +154,19 @@ const useStore = create<StoreState>()(
 
         return transactions.filter((t) => new Date(t.date) >= startDate);
       },
+
+      deleteTransaction: (id) =>
+        set((state) => ({
+          transactions: state.transactions.filter((t) => t.id !== id),
+        })),
+
+      // Modified to accept a full transaction object
+      editTransaction: (id, updatedTransaction) =>
+        set((state) => ({
+          transactions: state.transactions.map((t) =>
+            t.id === id ? { ...t, ...updatedTransaction } : t
+          ),
+        })),
 
       getAnalytics: (period: Period) => {
         const transactions = get().getTransactionsByPeriod(period);

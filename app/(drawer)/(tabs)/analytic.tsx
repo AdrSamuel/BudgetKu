@@ -1,18 +1,18 @@
 import { StyleSheet } from "react-native";
 import { ScrollView, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import Header from "@/components/Header";
 
 export default function Analytic() {
   return (
-    <SafeAreaView
+    <SafeAreaProvider
       style={[styles.container, { backgroundColor: Colors["dark"].background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Header />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

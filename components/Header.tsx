@@ -1,67 +1,281 @@
-import React from "react";
-import { View, Text } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import useStore from "@/store/store";
-import { StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+type Period = "day" | "week" | "month";
 
 const Header = () => {
-  const { transactions, addTransaction, getAnalytics, selectedCurrency } =
-    useStore() as {
-      transactions: any;
-      addTransaction: (transaction: any) => void;
-      getAnalytics: (period: string) => any;
-      selectedCurrency: "IDR" | "USD";
+  const { getAnalytics, selectedCurrency, setCurrency } = useStore();
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const data = getAnalytics(selectedPeriod);
+      setAnalyticsData(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching analytics:", err);
+      setError("Failed to fetch analytics data");
+    }
+  }, [selectedPeriod, getAnalytics]);
+
+  useEffect(() => {
+    if (!selectedCurrency) {
+      setCurrency("USD");
+    }
+  }, [selectedCurrency, setCurrency]);
+
+  const getWeekDates = (date: Date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const monday = new Date(date.setDate(diff));
+    const sunday = new Date(date.setDate(diff + 6));
+    return { monday, sunday };
+  };
+
+  const formatDate = (date: Date, period: Period) => {
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      weekday: "short",
     };
-  const now = new Date();
-  const month = now.toLocaleString("default", { month: "long" }); // e.g., "September"
-  const year = now.getFullYear(); // e.g., 2024
 
-  const analytics = getAnalytics("month");
+    if (period === "week") {
+      const { monday, sunday } = getWeekDates(new Date(date));
+      return `${monday.toLocaleDateString("en-US", options)} - 
+${sunday.toLocaleDateString("en-US", options)}`;
+    }
 
-  // Define formatters for supported currencies
+    return date.toLocaleDateString(
+      "en-US",
+      period === "month" ? { year: "numeric", month: "long" } : options
+    );
+  };
+
   const currencyFormatters = {
     IDR: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }),
     USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }),
-    // Add more currencies if needed
+  };
+  const formatter =
+    currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
+    currencyFormatters["USD"];
+
+  const changeDate = (direction: "prev" | "next") => {
+    const newDate = new Date(currentDate);
+    switch (selectedPeriod) {
+      case "day":
+        newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
+        break;
+      case "week":
+        newDate.setDate(newDate.getDate() + (direction === "next" ? 7 : -7));
+        break;
+      case "month":
+        newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
+        break;
+    }
+    setCurrentDate(newDate);
   };
 
-  const formatter =
-    currencyFormatters[selectedCurrency] || currencyFormatters["IDR"];
+  const periodOptions: Period[] = ["day", "week", "month"];
 
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>
-        {month}, {year}
-      </Text>
-      <View style={styles.titleBott}>
-        <View style={styles.detailsRow}>
-          <Text style={styles.details}>Income : </Text>
-          <Text style={styles.detailsGreen}>
-            {formatter.format(analytics.totalIncome)}
+    <View style={styles.header}>
+      <View style={styles.dateSelector}>
+        <TouchableOpacity onPress={() => changeDate("prev")}>
+          <Ionicons name="chevron-back" size={24} color="#fbf1c7" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <Text style={styles.title}>
+            {formatDate(currentDate, selectedPeriod)}
           </Text>
-        </View>
-        <View style={styles.detailsRow}>
-          <Text style={styles.details}>Expense : </Text>
-          <Text style={styles.detailsRed}>
-            {formatter.format(analytics.totalExpense)}
-          </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => changeDate("next")}>
+          <Ionicons name="chevron-forward" size={24} color="#fbf1c7" />
+        </TouchableOpacity>
       </View>
+
+      <View style={styles.periodSelector}>
+        {periodOptions.map((period) => (
+          <TouchableOpacity
+            key={period}
+            style={[
+              styles.periodOption,
+              selectedPeriod === period && styles.selectedPeriod,
+            ]}
+            onPress={() => setSelectedPeriod(period)}
+          >
+            <Text
+              style={[
+                styles.periodOptionText,
+                selectedPeriod === period && styles.selectedPeriodText,
+              ]}
+            >
+              {period.charAt(0).toUpperCase() + period.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {analyticsData && (
+        <View style={styles.analytics}>
+          <View style={styles.detailsRow}>
+            <Text style={styles.details}>Income:</Text>
+            <Text style={styles.detailsGreen}>
+              {formatter.format(analyticsData.totalIncome)}
+            </Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.details}>Expense:</Text>
+            <Text style={styles.detailsRed}>
+              {formatter.format(analyticsData.totalExpense)}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.modalBackButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="arrow-back" size={24} color="#fbf1c7" />
+              </TouchableOpacity>
+              <Text style={styles.modalHeaderText}>Format</Text>
+            </View>
+            <FlatList
+              data={periodOptions}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setSelectedPeriod(item);
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.details}>
+                    {item.charAt(0).toUpperCase() + item.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item) => item}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-export default Header;
+const IndexPage = () => {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header />
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#282828",
+  },
+  header: {
+    paddingHorizontal: 20,
+  },
+  dateSelector: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  periodSelector: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 10,
+  },
+  periodOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#fbf1c7",
+  },
+  selectedPeriod: {
+    backgroundColor: "#fbf1c7",
+  },
+  periodOptionText: {
+    color: "#fbf1c7",
+    fontFamily: "PlusJakartaSans",
+    fontSize: 16,
+  },
+  selectedPeriodText: {
+    color: "#282828",
+  },
+  analytics: {
+    marginTop: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    gap: 2,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalHeaderText: {
+    color: "#fbf1c7",
+    gap: 2,
+    fontSize: 20,
+    fontFamily: "PlusJakartaSans",
+    flex: 1,
+    textAlign: "center",
+  },
+  modalContent: {
+    backgroundColor: "#282828",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  modalBackButton: {
+    marginBottom: 10,
+  },
+  modalItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#fbf1c7",
+  },
   title: {
     fontFamily: "PlusJakartaSans",
     fontSize: 24,
-    padding: 10,
+    paddingVertical: 10,
     paddingTop: 0,
     color: "#fbf1c7",
-  },
-  titleBott: {
-    flex: 1,
   },
   details: {
     fontFamily: "PlusJakartaSans",
@@ -73,7 +287,7 @@ const styles = StyleSheet.create({
   detailsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center", // Align the text vertically in the center
+    alignItems: "center",
     marginBottom: 5,
   },
   detailsRed: {
@@ -90,11 +304,6 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     color: "#b8bb26",
   },
-  content: {
-    fontFamily: "PlusJakartaSans",
-    color: "#fbf1c7",
-    fontSize: 16,
-    padding: 10,
-    paddingTop: 0,
-  },
 });
+
+export default IndexPage;

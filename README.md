@@ -27,7 +27,7 @@ BudgetKu is your simple, intuitive, and powerful personal finance management app
     git clone https://github.com/AdrSamuel/BudgetKu.git
    ```
 
-3. Have a node
+3. Install NodeJS
 
    ```bash
     https://github.com/coreybutler/nvm-windows#readme

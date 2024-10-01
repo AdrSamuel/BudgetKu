@@ -1,6 +1,6 @@
-import { create, StateCreator } from "zustand";
+import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { persist, PersistOptions, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 // Define types
 type TransactionType = "income" | "expense";
@@ -23,6 +23,8 @@ interface Analytics {
   totalIncome: number;
   totalExpense: number;
   expenseByCategory: { [category: string]: number };
+  totalBudget: number;
+  totalSpent: number;
 }
 
 interface BudgetProgress {
@@ -30,6 +32,20 @@ interface BudgetProgress {
   spent: number;
   remaining: number;
 }
+
+const DEFAULT_TAGS = [
+  "Groceries",
+  "Rent/Mortgage",
+  "Utilities",
+  "Transportation",
+  "Healthcare",
+  "Insurance",
+  "Dining Out",
+  "Entertainment",
+  "Subscriptions",
+  "Shopping",
+  "Hobbies",
+];
 
 // Define the store state
 interface StoreState {
@@ -53,6 +69,7 @@ interface StoreState {
   editTag: (oldTag: string, newTag: string) => void;
   deleteTag: (tag: string) => void;
   getTags: () => string[];
+  initializeTags: () => void;
   getTransactionsByPeriod: (
     period: Period,
     currentDate: string
@@ -62,32 +79,9 @@ interface StoreState {
   getTransactionsByTag: (tag: string) => Transaction[];
 }
 
-type StoreActions = Pick<
-  StoreState,
-  | "addTransaction"
-  | "editTransaction"
-  | "deleteTransaction"
-  | "setBudget"
-  | "addTag"
-  | "editTag"
-  | "deleteTag"
-  | "getTags"
-  | "getTransactionsByPeriod"
-  | "getAnalytics"
-  | "getBudgetProgress"
-  | "getTransactionsByTag"
-  | "setCurrency"
->;
-
-// Persist options type
-type BudgetPersist = (
-  config: StateCreator<StoreState>,
-  options: PersistOptions<StoreState>
-) => StateCreator<StoreState>;
-
 // Create the store
 const useStore = create<StoreState>()(
-  (persist as unknown as BudgetPersist)(
+  persist(
     (set, get) => ({
       transactions: [],
       budgets: {},
@@ -99,7 +93,7 @@ const useStore = create<StoreState>()(
       setCurrency: (currency) => set({ selectedCurrency: currency }),
       setSelectedPeriod: (period) => set({ selectedPeriod: period }),
 
-      addTransaction: (transaction: Omit<Transaction, "id">) =>
+      addTransaction: (transaction) =>
         set((state) => ({
           transactions: [
             ...state.transactions,
@@ -107,17 +101,29 @@ const useStore = create<StoreState>()(
           ],
         })),
 
-      setBudget: (month: string, amount: number) =>
+      editTransaction: (id, updatedTransaction) =>
+        set((state) => ({
+          transactions: state.transactions.map((t) =>
+            t.id === id ? { ...t, ...updatedTransaction } : t
+          ),
+        })),
+
+      deleteTransaction: (id) =>
+        set((state) => ({
+          transactions: state.transactions.filter((t) => t.id !== id),
+        })),
+
+      setBudget: (month, amount) =>
         set((state) => ({
           budgets: { ...state.budgets, [month]: amount },
         })),
 
-      addTag: (tag: string) =>
+      addTag: (tag) =>
         set((state) => ({
           tags: [...state.tags, tag],
         })),
 
-      editTag: (oldTag: string, newTag: string) =>
+      editTag: (oldTag, newTag) =>
         set((state) => ({
           tags: state.tags.map((t) => (t === oldTag ? newTag : t)),
           transactions: state.transactions.map((transaction) => ({
@@ -126,7 +132,7 @@ const useStore = create<StoreState>()(
           })),
         })),
 
-      deleteTag: (tag: string) =>
+      deleteTag: (tag) =>
         set((state) => ({
           tags: state.tags.filter((t) => t !== tag),
           transactions: state.transactions.map((transaction) => ({
@@ -137,7 +143,14 @@ const useStore = create<StoreState>()(
 
       getTags: () => get().tags,
 
-      getTransactionsByPeriod: (period: Period, currentDate: string) => {
+      initializeTags: () => {
+        const { tags } = get();
+        if (tags.length === 0) {
+          set({ tags: DEFAULT_TAGS });
+        }
+      },
+
+      getTransactionsByPeriod: (period, currentDate) => {
         const { transactions } = get();
         const startDate = new Date(currentDate);
         let endDate = new Date(currentDate);
@@ -149,9 +162,8 @@ const useStore = create<StoreState>()(
             break;
           case "week":
             const { monday, sunday } = getWeekDates(startDate);
-            startDate.setHours(0, 0, 0, 0);
-            startDate.setDate(monday.getDate());
-            endDate.setDate(sunday.getDate());
+            startDate.setTime(monday.getTime());
+            endDate.setTime(sunday.getTime());
             break;
           case "month":
             startDate.setDate(1);
@@ -174,19 +186,7 @@ const useStore = create<StoreState>()(
         });
       },
 
-      deleteTransaction: (id) =>
-        set((state) => ({
-          transactions: state.transactions.filter((t) => t.id !== id),
-        })),
-
-      editTransaction: (id, updatedTransaction) =>
-        set((state) => ({
-          transactions: state.transactions.map((t) =>
-            t.id === id ? { ...t, ...updatedTransaction } : t
-          ),
-        })),
-
-      getAnalytics: (period: Period, currentDate: string) => {
+      getAnalytics: (period, currentDate) => {
         const transactions = get().getTransactionsByPeriod(period, currentDate);
         const totalIncome = transactions
           .filter((t) => t.type === "income")
@@ -201,19 +201,28 @@ const useStore = create<StoreState>()(
             return acc;
           }, {} as { [category: string]: number });
 
-        return { totalIncome, totalExpense, expenseByCategory };
+        const month = new Date(currentDate).toISOString().slice(0, 7);
+        const { budget: totalBudget } = get().getBudgetProgress(month);
+
+        return {
+          totalIncome,
+          totalExpense,
+          expenseByCategory,
+          totalBudget,
+          totalSpent: totalExpense,
+        };
       },
 
-      getBudgetProgress: (month: string) => {
+      getBudgetProgress: (month) => {
         const { budgets, transactions } = get();
         const budget = budgets[month] || 0;
-        const expenses = transactions
+        const spent = transactions
           .filter((t) => t.type === "expense" && t.date.startsWith(month))
           .reduce((sum, t) => sum + t.amount, 0);
-        return { budget, spent: expenses, remaining: budget - expenses };
+        return { budget, spent, remaining: budget - spent };
       },
 
-      getTransactionsByTag: (tag: string) => {
+      getTransactionsByTag: (tag) => {
         const { transactions } = get();
         return transactions.filter((t) => t.tags.includes(tag));
       },
@@ -221,15 +230,25 @@ const useStore = create<StoreState>()(
     {
       name: "budgetku",
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.initializeTags();
+        }
+      },
     }
   )
 );
+
 // Helper function to get the start and end dates of the week
 function getWeekDates(date: Date) {
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-  const monday = new Date(date.setDate(diff));
-  const sunday = new Date(date.setDate(diff + 6));
+  const monday = new Date(date);
+  monday.setDate(diff);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
   return { monday, sunday };
 }
 

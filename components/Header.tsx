@@ -88,6 +88,7 @@ ${sunday.toLocaleDateString("en-US", options)}`;
     IDR: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }),
     USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }),
   };
+
   const formatter =
     currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
     currencyFormatters["USD"];

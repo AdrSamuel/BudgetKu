@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -13,11 +13,15 @@ import { Colors } from "@/constants/Colors";
 import useStore from "@/store/store";
 
 const Tags = () => {
-  const { tags, addTag, editTag, deleteTag } = useStore();
+  const { tags, addTag, editTag, deleteTag, initializeTags } = useStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedTag, setSelectedTag] = useState("");
   const [newTagName, setNewTagName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    initializeTags();
+  }, []);
 
   const handleAddTag = () => {
     if (newTagName.trim()) {

@@ -5,7 +5,7 @@ import {
   View,
   TouchableOpacity,
   FlatList,
-  Modal,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import useStore from "@/store/store";
@@ -19,37 +19,51 @@ type BudgetItem = {
 
 const BudgetPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [modalVisible, setModalVisible] = useState(false);
-  const { getAnalytics, selectedCurrency, setCurrency } = useStore();
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    selectedCurrency,
+    setCurrency,
+    getAnalytics,
+    getTags,
+    getBudgetProgress,
+    getTransactionsByTag,
+    setBudget,
+  } = useStore();
 
-  // Mock data for demonstration
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([
-    { tag: "Food", limit: 500, spent: 300 },
-    { tag: "Transportation", limit: 200, spent: 150 },
-    { tag: "Entertainment", limit: 100, spent: 80 },
-  ]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const [tagsWithoutBudget, setTagsWithoutBudget] = useState<string[]>([]);
 
-  const [tagsWithoutBudget, setTagsWithoutBudget] = useState<string[]>([
-    "Shopping",
-    "Utilities",
-    "Health",
-  ]);
+  const fetchBudgetData = () => {
+    const monthString = currentDate.toISOString().slice(0, 7); // YYYY-MM
+    const analytics = getAnalytics("month", currentDate.toISOString());
+    const { budget, spent } = getBudgetProgress(monthString);
+    const allTags = getTags();
 
-  const fetchAnalytics = () => {
-    try {
-      const data = getAnalytics("month", currentDate.toISOString());
-      setAnalyticsData(data);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching analytics:", err);
-      setError("Failed to fetch analytics data");
-    }
+    const budgetItemsData: BudgetItem[] = [];
+    const tagsWithoutBudgetData: string[] = [];
+
+    allTags.forEach((tag) => {
+      const tagTransactions = getTransactionsByTag(tag);
+      const tagSpent = tagTransactions
+        .filter((t) => t.type === "expense" && t.date.startsWith(monthString))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      if (tagSpent > 0) {
+        budgetItemsData.push({
+          tag,
+          limit: budget, // Note: This assumes a single budget for all tags
+          spent: tagSpent,
+        });
+      } else {
+        tagsWithoutBudgetData.push(tag);
+      }
+    });
+
+    setBudgetItems(budgetItemsData);
+    setTagsWithoutBudget(tagsWithoutBudgetData);
   };
 
   useEffect(() => {
-    fetchAnalytics();
+    fetchBudgetData();
   }, [currentDate]);
 
   useEffect(() => {
@@ -104,58 +118,71 @@ const BudgetPage = () => {
   const renderTagWithoutBudget = ({ item }: { item: string }) => (
     <View style={styles.tagItem}>
       <Text style={styles.tagText}>{item}</Text>
-      <TouchableOpacity style={styles.setBudgetButton}>
+      <TouchableOpacity
+        style={styles.setBudgetButton}
+        onPress={() => {
+          const monthString = currentDate.toISOString().slice(0, 7);
+          setBudget(monthString, 0); // Set an initial budget of 0
+          fetchBudgetData(); // Refresh the data
+        }}
+      >
         <Text style={styles.setBudgetButtonText}>SET BUDGET</Text>
       </TouchableOpacity>
     </View>
   );
 
+  const monthString = currentDate.toISOString().slice(0, 7);
+  const { budget: totalBudget, spent: totalSpent } =
+    getBudgetProgress(monthString);
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.dateSelector}>
-          <TouchableOpacity onPress={() => changeMonth("prev")}>
-            <Ionicons name="chevron-back" size={24} color="#fbf1c7" />
-          </TouchableOpacity>
-          <Text style={styles.title}>{formatDate(currentDate)}</Text>
-          <TouchableOpacity onPress={() => changeMonth("next")}>
-            <Ionicons name="chevron-forward" size={24} color="#fbf1c7" />
-          </TouchableOpacity>
-        </View>
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={styles.dateSelector}>
+            <TouchableOpacity onPress={() => changeMonth("prev")}>
+              <Ionicons name="chevron-back" size={24} color="#fbf1c7" />
+            </TouchableOpacity>
+            <Text style={styles.title}>{formatDate(currentDate)}</Text>
+            <TouchableOpacity onPress={() => changeMonth("next")}>
+              <Ionicons name="chevron-forward" size={24} color="#fbf1c7" />
+            </TouchableOpacity>
+          </View>
 
-        {analyticsData && (
           <View style={styles.analytics}>
             <View style={styles.detailsRow}>
               <Text style={styles.details}>Total Budget:</Text>
               <Text style={styles.detailsGreen}>
-                {formatter.format(analyticsData.totalBudget)}
+                {formatter.format(totalBudget)}
               </Text>
             </View>
             <View style={styles.detailsRow}>
               <Text style={styles.details}>Total Spent:</Text>
               <Text style={styles.detailsRed}>
-                {formatter.format(analyticsData.totalSpent)}
+                {formatter.format(totalSpent)}
               </Text>
             </View>
           </View>
-        )}
-      </View>
+        </View>
 
-      <Text style={styles.sectionTitle}>Budgeted Categories</Text>
-      <FlatList
-        data={budgetItems}
-        renderItem={renderBudgetItem}
-        keyExtractor={(item) => item.tag}
-        style={styles.list}
-      />
+        <Text style={styles.sectionTitle}>Budgeted Tags</Text>
+        <FlatList
+          data={budgetItems}
+          renderItem={renderBudgetItem}
+          keyExtractor={(item) => item.tag}
+          style={styles.list}
+          nestedScrollEnabled
+        />
 
-      <Text style={styles.sectionTitle}>Categories Without Budget</Text>
-      <FlatList
-        data={tagsWithoutBudget}
-        renderItem={renderTagWithoutBudget}
-        keyExtractor={(item) => item}
-        style={styles.list}
-      />
+        <Text style={styles.sectionTitle}>Tags Without Budget</Text>
+        <FlatList
+          data={tagsWithoutBudget}
+          renderItem={renderTagWithoutBudget}
+          keyExtractor={(item) => item}
+          style={[styles.list, styles.lastList]}
+          nestedScrollEnabled
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -212,6 +239,9 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  lastList: {
+    marginBottom: 80,
   },
   budgetItem: {
     backgroundColor: "#3c3836",

@@ -2,6 +2,7 @@ import { StyleSheet } from "react-native";
 import { ScrollView, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
+import BudgetPage from "@/components/BudgetPage";
 
 export default function Analytic() {
   return (
@@ -9,7 +10,7 @@ export default function Analytic() {
       style={[styles.container, { backgroundColor: Colors["dark"].background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.content}>Ini budget page</Text>
+        <BudgetPage />
       </ScrollView>
     </SafeAreaProvider>
   );
@@ -19,11 +20,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors["dark"].background,
-  },
-  content: {
-    fontFamily: "PlusJakartaSans",
-    color: "#fbf1c7",
-    fontSize: 16,
-    padding: 10,
   },
 });

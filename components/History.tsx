@@ -9,6 +9,7 @@ import {
   FlatList,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { Picker } from "@react-native-picker/picker";
 import useStore from "@/store/store";
 import {
   startOfDay,
@@ -34,6 +35,7 @@ const History = ({
     editTransaction,
     deleteTransaction,
     selectedCurrency,
+    tags,
   } = useStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -258,13 +260,15 @@ const History = ({
               placeholderTextColor="#fbf1c7"
             />
             {selectedTransaction?.type === "expense" && (
-              <TextInput
-                style={styles.input}
-                value={editedTag}
-                onChangeText={setEditedTag}
-                placeholder="Tag"
-                placeholderTextColor="#fbf1c7"
-              />
+              <Picker
+                selectedValue={editedTag}
+                style={styles.picker}
+                onValueChange={(itemValue) => setEditedTag(itemValue)}
+              >
+                {tags.map((tag) => (
+                  <Picker.Item key={tag} label={tag} value={tag} />
+                ))}
+              </Picker>
             )}
             <TouchableOpacity style={styles.button} onPress={confirmEdit}>
               <Text style={styles.buttonText}>Save</Text>
@@ -419,5 +423,12 @@ const styles = StyleSheet.create({
   },
   detailsGreen: {
     color: "#b8bb26",
+  },
+  picker: {
+    height: 50,
+    width: "100%",
+    color: "#fbf1c7",
+    backgroundColor: "#3c3836",
+    marginBottom: 10,
   },
 });

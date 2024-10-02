@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,14 +11,6 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Picker } from "@react-native-picker/picker";
 import useStore from "@/store/store";
-import {
-  startOfDay,
-  startOfWeek,
-  startOfMonth,
-  endOfDay,
-  endOfWeek,
-  endOfMonth,
-} from "date-fns";
 
 type TransactionType = "income" | "expense";
 type Period = "day" | "week" | "month";
@@ -45,38 +37,16 @@ const History = ({
     amount: number;
     tags: string[];
     date: string;
-    type: string;
+    type: TransactionType;
   } | null>(null);
 
   const [editedAmount, setEditedAmount] = useState("");
   const [editedTag, setEditedTag] = useState("");
-  const [transactions, setTransactions] = useState<any[]>([]);
 
-  const getStartAndEndDate = (period: Period, currentDate: string) => {
-    const date = new Date(currentDate);
-    switch (period) {
-      case "day":
-        return [startOfDay(date), endOfDay(date)];
-      case "week":
-        return [startOfWeek(date), endOfWeek(date)];
-      case "month":
-        return [startOfMonth(date), endOfMonth(date)];
-      default:
-        return [startOfDay(date), endOfDay(date)];
-    }
-  };
-
-  const fetchTransactions = async () => {
-    const fetchedTransactions = await getTransactionsByPeriod(
-      selectedPeriod,
-      currentDate.toISOString()
-    );
-    setTransactions(fetchedTransactions);
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [selectedPeriod, currentDate]);
+  const transactions = getTransactionsByPeriod(
+    selectedPeriod,
+    currentDate.toISOString()
+  );
 
   const handleEdit = (transaction: {
     id: number;
@@ -85,7 +55,10 @@ const History = ({
     date: string;
     type: string;
   }) => {
-    setSelectedTransaction(transaction);
+    setSelectedTransaction({
+      ...transaction,
+      type: transaction.type as TransactionType,
+    });
     setEditedAmount(transaction.amount.toString());
     setEditedTag(transaction.tags[0] || "");
     setEditModalVisible(true);
@@ -98,29 +71,31 @@ const History = ({
     date: string;
     type: string;
   }) => {
-    setSelectedTransaction(transaction);
+    setSelectedTransaction({
+      ...transaction,
+      type: transaction.type as TransactionType,
+    });
     setDeleteModalVisible(true);
   };
 
-  const confirmEdit = async () => {
+  const confirmEdit = () => {
     if (selectedTransaction) {
-      await editTransaction(selectedTransaction.id, {
+      const updatedTransaction = {
         ...selectedTransaction,
-        amount: parseFloat(editedAmount),
-        tags: selectedTransaction.type === "expense" ? [editedTag] : [],
-        type: selectedTransaction.type as TransactionType,
-      });
-      await fetchTransactions();
+        amount: parseFloat(editedAmount), // Convert amount back to a number
+        tags: [editedTag], // Ensure tags is an array
+      };
+
+      editTransaction(selectedTransaction.id, updatedTransaction);
+      setEditModalVisible(false);
     }
-    setEditModalVisible(false);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (selectedTransaction) {
-      await deleteTransaction(selectedTransaction.id);
-      await fetchTransactions();
+      deleteTransaction(selectedTransaction.id);
+      setDeleteModalVisible(false);
     }
-    setDeleteModalVisible(false);
   };
 
   const renderTransaction = ({
@@ -175,7 +150,12 @@ const History = ({
   }) => (
     <View style={styles.dayContainer}>
       <Text style={styles.dayHeader}>
-        {new Date(item[0].date).toDateString()}
+        {new Intl.DateTimeFormat("en-US", {
+          weekday: "long", // e.g., Mon
+          year: "numeric", // e.g., 2024
+          month: "short", // e.g., Oct
+          day: "numeric", // e.g., 2
+        }).format(new Date(item[0].date))}
       </Text>
       <View style={styles.underline} />
       <FlatList
@@ -234,14 +214,9 @@ const History = ({
   return (
     <View style={styles.container}>
       <FlatList
-        data={groupTransactionsByDay(transactions).map(
-          ([date, transactions]) => ({
-            date,
-            transactions,
-          })
-        )}
-        renderItem={({ item }) => renderDay({ item: item.transactions })}
-        keyExtractor={(item) => item.date}
+        data={groupTransactionsByDay(transactions)}
+        renderItem={({ item }) => renderDay({ item: item[1] })}
+        keyExtractor={(item) => item[0]}
       />
       <Modal
         visible={editModalVisible}
@@ -364,7 +339,6 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontFamily: "PlusJakartaSans",
     fontSize: 16,
-    // fontWeight: "bold",
   },
   transactionActions: {
     flexDirection: "row",

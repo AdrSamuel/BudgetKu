@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -25,8 +25,6 @@ const BudgetPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const {
     selectedCurrency,
-    setCurrency,
-    getTags,
     getTransactionsByTag,
     setBudget,
     budgets,
@@ -186,7 +184,11 @@ const BudgetPage = () => {
               )
             }
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#fbf1c7" />
+            <Ionicons
+              name="ellipsis-horizontal-circle"
+              size={24}
+              color="#fbf1c7"
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.budgetDetails}>

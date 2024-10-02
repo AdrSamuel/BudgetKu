@@ -27,26 +27,20 @@ const Header = ({
   selectedPeriod: Period;
   setSelectedPeriod: React.Dispatch<React.SetStateAction<Period>>;
 }) => {
-  const { getAnalytics, selectedCurrency, setCurrency } = useStore();
+  const { getAnalytics, selectedCurrency, setCurrency, transactions } =
+    useStore();
   const [modalVisible, setModalVisible] = useState(false);
-  // const [currentDate, setCurrentDate] = useState(new Date());
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalytics = () => {
+  useEffect(() => {
     try {
       const data = getAnalytics(selectedPeriod, currentDate.toISOString());
       setAnalyticsData(data);
-      setError(null);
     } catch (err) {
-      console.error("Error fetching analytics:", err);
       setError("Failed to fetch analytics data");
     }
-  };
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [selectedPeriod, currentDate]);
+  }, [getAnalytics, selectedPeriod, currentDate, transactions]);
 
   useEffect(() => {
     if (!selectedCurrency) {
@@ -232,7 +226,6 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    // paddingBottom: 10,
   },
   dateSelector: {
     flexDirection: "row",

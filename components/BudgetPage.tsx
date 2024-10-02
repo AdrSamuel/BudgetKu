@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,8 +6,12 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  Modal,
+  TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import useStore from "@/store/store";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -22,55 +26,106 @@ const BudgetPage = () => {
   const {
     selectedCurrency,
     setCurrency,
-    getAnalytics,
     getTags,
-    getBudgetProgress,
     getTransactionsByTag,
     setBudget,
+    budgets,
+    removeBudget,
+    getTagsWithoutBudget,
   } = useStore();
 
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [tagsWithoutBudget, setTagsWithoutBudget] = useState<string[]>([]);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [totalBudget, setTotalBudget] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedTag, setSelectedTag] = useState("");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
-  const fetchBudgetData = () => {
+  const fetchBudgetData = useCallback(() => {
     const monthString = currentDate.toISOString().slice(0, 7); // YYYY-MM
-    const analytics = getAnalytics("month", currentDate.toISOString());
-    const { budget, spent } = getBudgetProgress(monthString);
-    const allTags = getTags();
+    const monthBudgets = budgets[monthString] || {};
 
     const budgetItemsData: BudgetItem[] = [];
-    const tagsWithoutBudgetData: string[] = [];
+    let totalSpentAmount = 0;
+    let totalBudgetAmount = 0;
 
-    allTags.forEach((tag) => {
+    Object.entries(monthBudgets).forEach(([tag, limit]) => {
       const tagTransactions = getTransactionsByTag(tag);
       const tagSpent = tagTransactions
         .filter((t) => t.type === "expense" && t.date.startsWith(monthString))
         .reduce((sum, t) => sum + t.amount, 0);
 
-      if (tagSpent > 0) {
-        budgetItemsData.push({
-          tag,
-          limit: budget, // Note: This assumes a single budget for all tags
-          spent: tagSpent,
-        });
-      } else {
-        tagsWithoutBudgetData.push(tag);
-      }
+      budgetItemsData.push({
+        tag,
+        limit,
+        spent: tagSpent,
+      });
+
+      totalSpentAmount += tagSpent;
+      totalBudgetAmount += limit;
     });
 
     setBudgetItems(budgetItemsData);
-    setTagsWithoutBudget(tagsWithoutBudgetData);
+    setTagsWithoutBudget(getTagsWithoutBudget(monthString));
+    setTotalSpent(totalSpentAmount);
+    setTotalBudget(totalBudgetAmount);
+  }, [currentDate, budgets, getTransactionsByTag, getTagsWithoutBudget]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBudgetData();
+    }, [fetchBudgetData])
+  );
+
+  const handleSetBudget = () => {
+    const monthString = currentDate.toISOString().slice(0, 7);
+    const amount = Number(budgetAmount);
+    if (!isNaN(amount) && amount > 0) {
+      setBudget(monthString, { [selectedTag]: amount });
+      fetchBudgetData();
+      setModalVisible(false);
+      setBudgetAmount("");
+      setIsEditing(false);
+    }
   };
 
-  useEffect(() => {
-    fetchBudgetData();
-  }, [currentDate]);
+  const handleDeleteBudget = (tag: string) => {
+    Alert.alert(
+      "Delete Budget",
+      `Are you sure you want to delete the budget for ${tag}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            const monthString = currentDate.toISOString().slice(0, 7);
+            removeBudget(monthString, tag);
 
-  useEffect(() => {
-    if (!selectedCurrency) {
-      setCurrency("IDR");
-    }
-  }, [selectedCurrency, setCurrency]);
+            setBudgetItems((prevItems) => {
+              const updatedItems = prevItems.filter((item) => item.tag !== tag);
+              const deletedItem = prevItems.find((item) => item.tag === tag);
+
+              if (deletedItem) {
+                setTotalBudget((prevTotal) =>
+                  Math.max(prevTotal - deletedItem.limit, 0)
+                );
+                setTotalSpent((prevTotal) =>
+                  Math.max(prevTotal - deletedItem.spent, 0)
+                );
+              }
+
+              return updatedItems;
+            });
+
+            setTagsWithoutBudget((prevTags) => [...prevTags, tag]);
+          },
+        },
+      ]
+    );
+  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "long" });
@@ -90,13 +145,50 @@ const BudgetPage = () => {
     currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
     currencyFormatters["USD"];
 
+  const getProgressBarColor = (spent: number, limit: number) => {
+    const percentage = (spent / limit) * 100;
+    if (percentage >= 100) return "#fb4934";
+    if (percentage >= 75) return "#fe8019";
+    if (percentage >= 50) return "#fabd2f";
+    return "#b8bb26";
+  };
+
   const renderBudgetItem = ({ item }: { item: BudgetItem }) => {
-    const progress = (item.spent / item.limit) * 100;
+    const progress = Math.min((item.spent / item.limit) * 100, 100);
     const remaining = item.limit - item.spent;
 
     return (
       <View style={styles.budgetItem}>
-        <Text style={styles.tagText}>{item.tag}</Text>
+        <View style={styles.budgetItemHeader}>
+          <Text style={styles.tagText}>{item.tag}</Text>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                "Budget Options",
+                `Choose an action for ${item.tag}`,
+                [
+                  {
+                    text: "Edit",
+                    onPress: () => {
+                      setSelectedTag(item.tag);
+                      setBudgetAmount(item.limit.toString());
+                      setIsEditing(true);
+                      setModalVisible(true);
+                    },
+                  },
+                  {
+                    text: "Delete",
+                    onPress: () => handleDeleteBudget(item.tag),
+                    style: "destructive",
+                  },
+                  { text: "Cancel", style: "cancel" },
+                ]
+              )
+            }
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#fbf1c7" />
+          </TouchableOpacity>
+        </View>
         <View style={styles.budgetDetails}>
           <Text style={styles.detailText}>
             Limit: {formatter.format(item.limit)}
@@ -109,7 +201,15 @@ const BudgetPage = () => {
           </Text>
         </View>
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
+          <View
+            style={[
+              styles.progressBar,
+              {
+                width: `${progress}%`,
+                backgroundColor: getProgressBarColor(item.spent, item.limit),
+              },
+            ]}
+          />
         </View>
       </View>
     );
@@ -121,19 +221,16 @@ const BudgetPage = () => {
       <TouchableOpacity
         style={styles.setBudgetButton}
         onPress={() => {
-          const monthString = currentDate.toISOString().slice(0, 7);
-          setBudget(monthString, 0); // Set an initial budget of 0
-          fetchBudgetData(); // Refresh the data
+          setSelectedTag(item);
+          setBudgetAmount("");
+          setIsEditing(false);
+          setModalVisible(true);
         }}
       >
         <Text style={styles.setBudgetButtonText}>SET BUDGET</Text>
       </TouchableOpacity>
     </View>
   );
-
-  const monthString = currentDate.toISOString().slice(0, 7);
-  const { budget: totalBudget, spent: totalSpent } =
-    getBudgetProgress(monthString);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -165,7 +262,7 @@ const BudgetPage = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Budgeted Tags</Text>
+        <Text style={styles.sectionTitle}>Budgeted Categories</Text>
         <FlatList
           data={budgetItems}
           renderItem={renderBudgetItem}
@@ -174,7 +271,7 @@ const BudgetPage = () => {
           nestedScrollEnabled
         />
 
-        <Text style={styles.sectionTitle}>Tags Without Budget</Text>
+        <Text style={styles.sectionTitle}>Categories Without Budget</Text>
         <FlatList
           data={tagsWithoutBudget}
           renderItem={renderTagWithoutBudget}
@@ -183,6 +280,51 @@ const BudgetPage = () => {
           nestedScrollEnabled
         />
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalHeaderText}>
+                {isEditing ? "Edit" : "Set"} Budget for {selectedTag}
+              </Text>
+            </View>
+            <TextInput
+              style={styles.input}
+              onChangeText={setBudgetAmount}
+              value={budgetAmount}
+              placeholder="Enter budget amount"
+              keyboardType="numeric"
+              placeholderTextColor="#fbf1c7"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setModalVisible(false);
+                  setIsEditing(false);
+                  setBudgetAmount("");
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={handleSetBudget}
+              >
+                <Text style={styles.modalButtonText}>
+                  {isEditing ? "Update" : "Add"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -203,6 +345,55 @@ const styles = StyleSheet.create({
   },
   analytics: {
     marginTop: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#282828",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalHeaderText: {
+    color: "#fbf1c7",
+    fontSize: 20,
+    fontFamily: "PlusJakartaSans",
+    flex: 1,
+    textAlign: "center",
+  },
+  input: {
+    height: 40,
+    borderColor: "#fbf1c7",
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    color: "#fbf1c7",
+    fontFamily: "PlusJakartaSans",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalButton: {
+    backgroundColor: "#fbf1c7",
+    padding: 10,
+    borderRadius: 5,
+    width: "45%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#282828",
+    fontFamily: "PlusJakartaSans",
+    fontSize: 16,
   },
   title: {
     fontFamily: "PlusJakartaSans",
@@ -294,6 +485,12 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans",
     fontSize: 14,
     color: "#282828",
+  },
+  budgetItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 5,
   },
 });
 

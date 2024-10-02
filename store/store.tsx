@@ -16,7 +16,7 @@ interface Transaction {
 }
 
 interface Budget {
-  [month: string]: number;
+  [month: string]: { [tag: string]: number };
 }
 
 interface Analytics {
@@ -62,7 +62,8 @@ interface StoreState {
     updatedTransaction: Partial<Transaction>
   ) => void;
   deleteTransaction: (id: number) => void;
-  setBudget: (month: string, amount: number) => void;
+  setBudget: (month: string, tagBudgets: { [tag: string]: number }) => void;
+  removeBudget: (month: string, tag: string) => void;
   setCurrency: (currency: string) => void;
   setSelectedPeriod: (period: Period) => void;
   addTag: (tag: string) => void;
@@ -77,6 +78,7 @@ interface StoreState {
   getAnalytics: (period: Period, currentDate: string) => Analytics;
   getBudgetProgress: (month: string) => BudgetProgress;
   getTransactionsByTag: (tag: string) => Transaction[];
+  getTagsWithoutBudget: (month: string) => string[];
 }
 
 // Create the store
@@ -113,9 +115,12 @@ const useStore = create<StoreState>()(
           transactions: state.transactions.filter((t) => t.id !== id),
         })),
 
-      setBudget: (month, amount) =>
+      setBudget: (month, tagBudgets: { [tag: string]: number }) =>
         set((state) => ({
-          budgets: { ...state.budgets, [month]: amount },
+          budgets: {
+            ...state.budgets,
+            [month]: { ...state.budgets[month], ...tagBudgets },
+          },
         })),
 
       addTag: (tag) =>
@@ -213,11 +218,32 @@ const useStore = create<StoreState>()(
         };
       },
 
+      removeBudget: (month, tag) =>
+        set((state) => {
+          const newMonthBudgets = { ...state.budgets[month] };
+          delete newMonthBudgets[tag];
+          return {
+            budgets: {
+              ...state.budgets,
+              [month]: newMonthBudgets,
+            },
+          };
+        }),
+
       getBudgetProgress: (month) => {
         const { budgets, transactions } = get();
-        const budget = budgets[month] || 0;
+        const monthBudgets = budgets[month] || {};
+        const budget = Object.values(monthBudgets).reduce(
+          (sum, amount) => sum + amount,
+          0
+        );
         const spent = transactions
-          .filter((t) => t.type === "expense" && t.date.startsWith(month))
+          .filter(
+            (t) =>
+              t.type === "expense" &&
+              t.date.startsWith(month) &&
+              t.tags.some((tag) => tag in monthBudgets)
+          )
           .reduce((sum, t) => sum + t.amount, 0);
         return { budget, spent, remaining: budget - spent };
       },
@@ -225,6 +251,12 @@ const useStore = create<StoreState>()(
       getTransactionsByTag: (tag) => {
         const { transactions } = get();
         return transactions.filter((t) => t.tags.includes(tag));
+      },
+
+      getTagsWithoutBudget: (month) => {
+        const { tags, budgets } = get();
+        const monthBudgets = budgets[month] || {};
+        return tags.filter((tag) => !(tag in monthBudgets));
       },
     }),
     {

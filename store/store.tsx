@@ -47,6 +47,10 @@ const DEFAULT_TAGS = [
   "Hobbies",
 ];
 
+interface TagColor {
+  [tag: string]: string;
+}
+
 // Define the store state
 interface StoreState {
   transactions: Transaction[];
@@ -70,7 +74,9 @@ interface StoreState {
   editTag: (oldTag: string, newTag: string) => void;
   deleteTag: (tag: string) => void;
   getTags: () => string[];
+  getTagColor: (tag: string) => string;
   initializeTags: () => void;
+  tagColors: TagColor;
   getTransactionsByPeriod: (
     period: Period,
     currentDate: string
@@ -81,6 +87,15 @@ interface StoreState {
   getTagsWithoutBudget: (month: string) => string[];
 }
 
+const generateRandomColor = () => {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
 // Create the store
 const useStore = create<StoreState>()(
   persist(
@@ -88,6 +103,7 @@ const useStore = create<StoreState>()(
       transactions: [],
       budgets: {},
       tags: [],
+      tagColors: {},
       currentDate: new Date().toISOString(),
       selectedCurrency: "",
       selectedPeriod: "month",
@@ -124,34 +140,63 @@ const useStore = create<StoreState>()(
         })),
 
       addTag: (tag) =>
-        set((state) => ({
-          tags: [...state.tags, tag],
-        })),
+        set((state) => {
+          const newColor = generateRandomColor();
+          return {
+            tags: [...state.tags, tag],
+            tagColors: { ...state.tagColors, [tag]: newColor },
+          };
+        }),
 
       editTag: (oldTag, newTag) =>
-        set((state) => ({
-          tags: state.tags.map((t) => (t === oldTag ? newTag : t)),
-          transactions: state.transactions.map((transaction) => ({
-            ...transaction,
-            tags: transaction.tags.map((t) => (t === oldTag ? newTag : t)),
-          })),
-        })),
+        set((state) => {
+          const newTagColors = { ...state.tagColors };
+          newTagColors[newTag] = newTagColors[oldTag];
+          delete newTagColors[oldTag];
+          return {
+            tags: state.tags.map((t) => (t === oldTag ? newTag : t)),
+            transactions: state.transactions.map((transaction) => ({
+              ...transaction,
+              tags: transaction.tags.map((t) => (t === oldTag ? newTag : t)),
+            })),
+            tagColors: newTagColors,
+          };
+        }),
 
       deleteTag: (tag) =>
-        set((state) => ({
-          tags: state.tags.filter((t) => t !== tag),
-          transactions: state.transactions.map((transaction) => ({
-            ...transaction,
-            tags: transaction.tags.filter((t) => t !== tag),
-          })),
-        })),
+        set((state) => {
+          const newTagColors = { ...state.tagColors };
+          delete newTagColors[tag];
+          return {
+            tags: state.tags.filter((t) => t !== tag),
+            transactions: state.transactions.map((transaction) => ({
+              ...transaction,
+              tags: transaction.tags.filter((t) => t !== tag),
+            })),
+            tagColors: newTagColors,
+          };
+        }),
 
       getTags: () => get().tags,
 
+      getTagColor: (tag: string) => {
+        const { tagColors } = get();
+        return tagColors[tag] || "#999999"; // Default color if not found
+      },
+
       initializeTags: () => {
-        const { tags } = get();
+        const { tags, tagColors } = get();
         if (tags.length === 0) {
-          set({ tags: DEFAULT_TAGS });
+          const initialTags = DEFAULT_TAGS.map((tag) => ({
+            tag,
+            color: generateRandomColor(),
+          }));
+          set({
+            tags: initialTags.map((t) => t.tag),
+            tagColors: Object.fromEntries(
+              initialTags.map((t) => [t.tag, t.color])
+            ),
+          });
         }
       },
 

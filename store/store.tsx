@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persist, createJSONStorage } from "zustand/middleware";
+import * as Notifications from "expo-notifications";
 
 // Define types
 type TransactionType = "income" | "expense";
@@ -33,18 +34,24 @@ interface BudgetProgress {
   remaining: number;
 }
 
+interface NotificationSettings {
+  dailyReminder: boolean;
+  overspendingWarning: boolean;
+  weeklyReport: boolean;
+}
+
 const DEFAULT_TAGS = [
-  "Groceries",
-  "Rent/Mortgage",
-  "Utilities",
-  "Transportation",
-  "Healthcare",
-  "Insurance",
-  "Dining Out",
-  "Entertainment",
-  "Subscriptions",
-  "Shopping",
-  "Hobbies",
+  { name: "Groceries", color: "#FF6B6B" },
+  { name: "Rent/Mortgage", color: "#4ECDC4" },
+  { name: "Utilities", color: "#45B7D1" },
+  { name: "Transportation", color: "#FFA07A" },
+  { name: "Healthcare", color: "#98D8C8" },
+  { name: "Insurance", color: "#F7DC6F" },
+  { name: "Dining Out", color: "#FF7F50" },
+  { name: "Entertainment", color: "#9B59B6" },
+  { name: "Subscriptions", color: "#3498DB" },
+  { name: "Shopping", color: "#E74C3C" },
+  { name: "Hobbies", color: "#2ECC71" },
 ];
 
 interface TagColor {
@@ -85,6 +92,9 @@ interface StoreState {
   getBudgetProgress: (month: string) => BudgetProgress;
   getTransactionsByTag: (tag: string) => Transaction[];
   getTagsWithoutBudget: (month: string) => string[];
+  notificationSettings: NotificationSettings;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
+  checkOverspending: () => Promise<void>;
 }
 
 const generateRandomColor = () => {
@@ -108,36 +118,92 @@ const useStore = create<StoreState>()(
       selectedCurrency: "",
       selectedPeriod: "month",
 
+      checkOverspending: async () => {
+        const {
+          notificationSettings,
+          getAnalytics,
+          currentDate,
+          selectedPeriod,
+        } = get();
+        console.log("Checking for overspending...");
+        console.log(
+          "Overspending warning enabled:",
+          notificationSettings.overspendingWarning
+        );
+
+        if (!notificationSettings.overspendingWarning) return;
+
+        const { totalExpense, totalBudget } = getAnalytics(
+          selectedPeriod,
+          currentDate
+        );
+
+        console.log("Total Expense:", totalExpense);
+        console.log("Total Budget:", totalBudget);
+        console.log("90% of Budget:", totalBudget * 0.9);
+
+        if (totalExpense > totalBudget * 0.9) {
+          // 90% of budget
+          console.log("Overspending detected. Scheduling notification...");
+          try {
+            const notificationId =
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: "Budget Alert: Overspending",
+                  body: "You've exceeded 90% of your budget for this period! Adjust your spending to stay on track.",
+                },
+                trigger: null, // null means the notification is scheduled to be delivered immediately
+              });
+            console.log(
+              "Notification scheduled successfully. ID:",
+              notificationId
+            );
+          } catch (error) {
+            console.error("Error scheduling overspending notification:", error);
+          }
+        } else {
+          console.log("No overspending detected.");
+        }
+      },
+
       setCurrency: (currency) => set({ selectedCurrency: currency }),
       setSelectedPeriod: (period) => set({ selectedPeriod: period }),
 
-      addTransaction: (transaction) =>
+      addTransaction: (transaction) => {
         set((state) => ({
           transactions: [
             ...state.transactions,
             { ...transaction, id: Date.now() },
           ],
-        })),
+        }));
+        get().checkOverspending();
+      },
 
-      editTransaction: (id, updatedTransaction) =>
+      editTransaction: (id, updatedTransaction) => {
         set((state) => ({
           transactions: state.transactions.map((t) =>
             t.id === id ? { ...t, ...updatedTransaction } : t
           ),
-        })),
+        }));
+        get().checkOverspending();
+      },
 
-      deleteTransaction: (id) =>
+      deleteTransaction: (id) => {
         set((state) => ({
           transactions: state.transactions.filter((t) => t.id !== id),
-        })),
+        }));
+        get().checkOverspending();
+      },
 
-      setBudget: (month, tagBudgets: { [tag: string]: number }) =>
+      setBudget: (month, tagBudgets: { [tag: string]: number }) => {
         set((state) => ({
           budgets: {
             ...state.budgets,
             [month]: { ...state.budgets[month], ...tagBudgets },
           },
-        })),
+        }));
+        get().checkOverspending();
+      },
 
       addTag: (tag) =>
         set((state) => {
@@ -187,14 +253,10 @@ const useStore = create<StoreState>()(
       initializeTags: () => {
         const { tags, tagColors } = get();
         if (tags.length === 0) {
-          const initialTags = DEFAULT_TAGS.map((tag) => ({
-            tag,
-            color: generateRandomColor(),
-          }));
           set({
-            tags: initialTags.map((t) => t.tag),
+            tags: DEFAULT_TAGS.map((t) => t.name),
             tagColors: Object.fromEntries(
-              initialTags.map((t) => [t.tag, t.color])
+              DEFAULT_TAGS.map((t) => [t.name, t.color])
             ),
           });
         }
@@ -303,6 +365,17 @@ const useStore = create<StoreState>()(
         const monthBudgets = budgets[month] || {};
         return tags.filter((tag) => !(tag in monthBudgets));
       },
+
+      notificationSettings: {
+        dailyReminder: true,
+        overspendingWarning: true,
+        weeklyReport: true,
+      },
+
+      updateNotificationSettings: (settings) =>
+        set((state) => ({
+          notificationSettings: { ...state.notificationSettings, ...settings },
+        })),
     }),
     {
       name: "budgetku",

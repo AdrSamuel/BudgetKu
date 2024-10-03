@@ -207,56 +207,36 @@ const ExpenseOverview = ({
   selectedPeriod: Period;
   currentDate: Date;
 }) => {
-  const { getTransactionsByTag, selectedCurrency, getTagColor, tags } =
-    useStore();
+  const {
+    getTransactionsByPeriod,
+    selectedCurrency,
+    getTagColor,
+    tags,
+    transactions,
+  } = useStore();
   const [expenseData, setExpenseData] = useState<{ [tag: string]: number }>({});
   const [totalExpense, setTotalExpense] = useState(0);
 
   useEffect(() => {
-    const startDate = new Date(currentDate);
-    let endDate = new Date(currentDate);
-
-    switch (selectedPeriod) {
-      case "day":
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case "week":
-        startDate.setDate(startDate.getDate() - startDate.getDay());
-        endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case "month":
-        startDate.setDate(1);
-        endDate.setMonth(endDate.getMonth() + 1);
-        endDate.setDate(0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-    }
-
+    const periodTransactions = getTransactionsByPeriod(
+      selectedPeriod,
+      currentDate.toISOString()
+    );
     const expenseByTag: { [tag: string]: number } = {};
     let total = 0;
 
-    tags.forEach((tag) => {
-      const transactions = getTransactionsByTag(tag);
-      const tagExpense = transactions
-        .filter(
-          (t) =>
-            t.type === "expense" &&
-            new Date(t.date) >= startDate &&
-            new Date(t.date) <= endDate
-        )
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      if (tagExpense > 0) {
-        expenseByTag[tag] = tagExpense;
-        total += tagExpense;
+    periodTransactions.forEach((transaction) => {
+      if (transaction.type === "expense") {
+        transaction.tags.forEach((tag) => {
+          expenseByTag[tag] = (expenseByTag[tag] || 0) + transaction.amount;
+        });
+        total += transaction.amount;
       }
     });
 
     setExpenseData(expenseByTag);
     setTotalExpense(total);
-  }, [getTransactionsByTag, selectedPeriod, currentDate, tags]);
+  }, [getTransactionsByPeriod, selectedPeriod, currentDate, transactions]);
 
   const currencyFormatters = {
     IDR: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }),
@@ -287,15 +267,14 @@ const ExpenseOverview = ({
           <View style={styles.chartContainer}>
             <PieChart
               data={chartData}
-              width={300}
+              width={350}
               height={200}
               chartConfig={{
                 color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
               }}
               accessor="amount"
               backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
+              paddingLeft="0"
             />
           </View>
           <View style={styles.detailsContainer}>
@@ -527,11 +506,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#fbf1c7",
     paddingTop: 8,
+    marginBottom: 80,
   },
   totalText: {
     fontSize: 16,
-    fontWeight: "bold",
     color: "#fbf1c7",
+    fontFamily: "PlusJakartaSans",
   },
   noExpensesText: {
     fontSize: 16,

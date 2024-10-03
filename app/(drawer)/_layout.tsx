@@ -35,6 +35,13 @@ export default function Layout() {
           }}
         />
         <Drawer.Screen
+          name="tags" // This is the name of the page and must match the url from root
+          options={{
+            drawerLabel: "Tags",
+            title: "BudgetKu",
+          }}
+        />
+        <Drawer.Screen
           name="currency"
           options={{
             drawerLabel: "Currency",
@@ -42,9 +49,9 @@ export default function Layout() {
           }}
         />
         <Drawer.Screen
-          name="tags" // This is the name of the page and must match the url from root
+          name="notif" // This is the name of the page and must match the url from root
           options={{
-            drawerLabel: "Tags",
+            drawerLabel: "Notification",
             title: "BudgetKu",
           }}
         />

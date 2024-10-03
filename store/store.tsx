@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { persist, createJSONStorage } from "zustand/middleware";
 import * as Notifications from "expo-notifications";
 
@@ -143,8 +144,6 @@ const useStore = create<StoreState>()(
         console.log("90% of Budget:", totalBudget * 0.9);
 
         if (totalExpense > totalBudget * 0.9) {
-          // 90% of budget
-          console.log("Overspending detected. Scheduling notification...");
           try {
             const notificationId =
               await Notifications.scheduleNotificationAsync({

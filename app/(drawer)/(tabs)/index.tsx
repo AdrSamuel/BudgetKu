@@ -1,8 +1,8 @@
 import { StyleSheet } from "react-native";
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import Header from "@/components/Header";
+import { ScrollView } from "react-native-virtualized-view";
 
 export default function Index() {
   return (

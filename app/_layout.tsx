@@ -8,6 +8,7 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import * as Notifications from "expo-notifications";
+import useStore from "@/store/store";
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -28,6 +29,7 @@ export default function RootLayout() {
     PlusJakartaSans: require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
   });
 
+  // Handle Notifications permission
   useEffect(() => {
     (async () => {
       const { status: existingStatus } =
@@ -44,11 +46,26 @@ export default function RootLayout() {
     })();
   }, []);
 
+  // Handle font loading
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Ensure the Zustand store state persists
+  useEffect(() => {
+    const store = useStore.getState();
+
+    // Initialize tags, if not already done
+    store.initializeTags();
+
+    // Trigger a dummy state update to ensure persistence
+    useStore.setState((state) => ({
+      ...state,
+      currentDate: new Date().toISOString(), // Dummy update to trigger persistence
+    }));
+  }, []);
 
   if (!loaded) {
     return null;
@@ -58,7 +75,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-        {/* <Stack.Screen name="(tabs)" options={{ headerShown: false }} /> */}
         <Stack.Screen name="+not-found" />
       </Stack>
     </GestureHandlerRootView>

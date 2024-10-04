@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -19,7 +19,6 @@ type BudgetItem = {
   tag: string;
   limit: number;
   spent: number;
-  key: string;
 };
 
 const BudgetPage = () => {
@@ -42,8 +41,6 @@ const BudgetPage = () => {
   const [budgetAmount, setBudgetAmount] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  const keyCounter = useRef(0);
-
   const fetchBudgetData = useCallback(() => {
     const monthString = currentDate.toISOString().slice(0, 7); // YYYY-MM
     const monthBudgets = budgets[monthString] || {};
@@ -62,7 +59,6 @@ const BudgetPage = () => {
         tag,
         limit,
         spent: tagSpent,
-        key: `${tag}-${keyCounter.current++}`,
       });
 
       totalSpentAmount += tagSpent;
@@ -111,9 +107,9 @@ const BudgetPage = () => {
               const deletedItem = prevItems.find((item) => item.tag === tag);
 
               if (deletedItem) {
-                setTotalBudget((prevTotal) =>
-                  Math.max(prevTotal - deletedItem.limit, 0)
-                );
+                // setTotalBudget((prevTotal) =>
+                //   Math.max(prevTotal - deletedItem.limit, 0)
+                // );
                 setTotalSpent((prevTotal) =>
                   Math.max(prevTotal - deletedItem.spent, 0)
                 );
@@ -122,7 +118,7 @@ const BudgetPage = () => {
               return updatedItems;
             });
 
-            setTagsWithoutBudget((prevTags) => [...prevTags, tag]);
+            // setTagsWithoutBudget((prevTags) => [...prevTags, tag]);
           },
         },
       ]
@@ -272,7 +268,7 @@ const BudgetPage = () => {
         <FlatList
           data={budgetItems}
           renderItem={renderBudgetItem}
-          keyExtractor={(item) => item.key}
+          keyExtractor={(item) => item.tag}
           style={styles.list}
           nestedScrollEnabled
         />
@@ -281,7 +277,7 @@ const BudgetPage = () => {
         <FlatList
           data={tagsWithoutBudget}
           renderItem={renderTagWithoutBudget}
-          keyExtractor={(item) => `${item}-${keyCounter.current++}`}
+          keyExtractor={(item) => item}
           style={[styles.list, styles.lastList]}
           nestedScrollEnabled
         />

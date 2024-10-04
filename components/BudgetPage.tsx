@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -19,6 +19,7 @@ type BudgetItem = {
   tag: string;
   limit: number;
   spent: number;
+  key: string;
 };
 
 const BudgetPage = () => {
@@ -41,6 +42,8 @@ const BudgetPage = () => {
   const [budgetAmount, setBudgetAmount] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
+  const keyCounter = useRef(0);
+
   const fetchBudgetData = useCallback(() => {
     const monthString = currentDate.toISOString().slice(0, 7); // YYYY-MM
     const monthBudgets = budgets[monthString] || {};
@@ -59,6 +62,7 @@ const BudgetPage = () => {
         tag,
         limit,
         spent: tagSpent,
+        key: `${tag}-${keyCounter.current++}`,
       });
 
       totalSpentAmount += tagSpent;
@@ -264,20 +268,20 @@ const BudgetPage = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Budgeted Categories</Text>
+        <Text style={styles.sectionTitle}>Budgeted Tags</Text>
         <FlatList
           data={budgetItems}
           renderItem={renderBudgetItem}
-          keyExtractor={(item) => item.tag}
+          keyExtractor={(item) => item.key}
           style={styles.list}
           nestedScrollEnabled
         />
 
-        <Text style={styles.sectionTitle}>Categories Without Budget</Text>
+        <Text style={styles.sectionTitle}>Tags Without Budget</Text>
         <FlatList
           data={tagsWithoutBudget}
           renderItem={renderTagWithoutBudget}
-          keyExtractor={(item) => item}
+          keyExtractor={(item) => `${item}-${keyCounter.current++}`}
           style={[styles.list, styles.lastList]}
           nestedScrollEnabled
         />

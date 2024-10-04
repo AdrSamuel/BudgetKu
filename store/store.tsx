@@ -120,38 +120,45 @@ const useStore = create<StoreState>()(
       selectedPeriod: "month",
 
       checkOverspending: async () => {
-        const {
-          notificationSettings,
-          getAnalytics,
-          currentDate,
-          selectedPeriod,
-        } = get();
-        console.log("Checking for overspending...");
-        console.log(
-          "Overspending warning enabled:",
-          notificationSettings.overspendingWarning
-        );
+        const { notificationSettings, transactions, budgets, currentDate } =
+          get();
+        const month = currentDate.slice(0, 7); // Format as "YYYY-MM" for the current month
 
+        // Ensure overspending warning is enabled
         if (!notificationSettings.overspendingWarning) return;
 
-        const { totalExpense, totalBudget } = getAnalytics(
-          selectedPeriod,
-          currentDate
+        // Get budgets for the current month
+        const monthBudgets = budgets[month] || {};
+
+        // Track total spent for tags with budgets
+        let totalSpent = 0;
+        let totalBudget = 0;
+
+        // Filter expenses for this month
+        const currentMonthExpenses = transactions.filter(
+          (t) => t.type === "expense" && t.date.startsWith(month)
         );
 
-        console.log("Total Expense:", totalExpense);
-        console.log("Total Budget:", totalBudget);
-        console.log("90% of Budget:", totalBudget * 0.9);
+        // Sum up the budget and expenses for tags that have budgets
+        currentMonthExpenses.forEach((expense) => {
+          expense.tags.forEach((tag) => {
+            if (monthBudgets[tag]) {
+              totalSpent += expense.amount;
+              totalBudget += monthBudgets[tag];
+            }
+          });
+        });
 
-        if (totalExpense > totalBudget * 0.9) {
+        // Check if total spent exceeds 90% of total budget
+        if (totalBudget > 0 && totalSpent > totalBudget * 0.9) {
           try {
             const notificationId =
               await Notifications.scheduleNotificationAsync({
                 content: {
                   title: "Budget Alert: Overspending",
-                  body: "You've exceeded 90% of your budget for this period! Adjust your spending to stay on track.",
+                  body: "You've spent more than 90% of your budget for this period! Be careful with your remaining spending.",
                 },
-                trigger: null, // null means the notification is scheduled to be delivered immediately
+                trigger: null, // Send immediately
               });
             console.log(
               "Notification scheduled successfully. ID:",
@@ -191,7 +198,6 @@ const useStore = create<StoreState>()(
         set((state) => ({
           transactions: state.transactions.filter((t) => t.id !== id),
         }));
-        get().checkOverspending();
       },
 
       setBudget: (month, tagBudgets: { [tag: string]: number }) => {
@@ -368,7 +374,7 @@ const useStore = create<StoreState>()(
       notificationSettings: {
         dailyReminder: true,
         overspendingWarning: true,
-        weeklyReport: true,
+        weeklyReport: false,
       },
 
       updateNotificationSettings: (settings) =>

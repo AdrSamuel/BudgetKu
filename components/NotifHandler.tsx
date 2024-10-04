@@ -18,26 +18,26 @@ export const scheduleDailyReminder = async () => {
   });
 };
 
-export const checkOverspending = async () => {
-  const { notificationSettings, getAnalytics, currentDate, selectedPeriod } =
-    useStore.getState();
-  if (!notificationSettings.overspendingWarning) return;
+// export const checkOverspending = async () => {
+//   const { notificationSettings, getAnalytics, currentDate, selectedPeriod } =
+//     useStore.getState();
+//   if (!notificationSettings.overspendingWarning) return;
 
-  const { totalExpense, totalBudget } = getAnalytics(
-    selectedPeriod,
-    currentDate
-  );
-  if (totalExpense > totalBudget * 0.9) {
-    // 90% of budget
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Budget Alert: Overspending",
-        body: "You've exceeded 90% of your budget for this period! Adjust your spending to stay on track.",
-      },
-      trigger: null,
-    });
-  }
-};
+//   const { totalExpense, totalBudget } = getAnalytics(
+//     selectedPeriod,
+//     currentDate
+//   );
+//   if (totalExpense > totalBudget * 0.9) {
+//     // 90% of budget
+//     await Notifications.scheduleNotificationAsync({
+//       content: {
+//         title: "Budget Alert: Overspending",
+//         body: "You've exceeded 90% of your budget for this period! Adjust your spending to stay on track.",
+//       },
+//       trigger: null,
+//     });
+//   }
+// };
 
 // export const scheduleWeeklyReport = async () => {
 //   const { notificationSettings } = useStore.getState();

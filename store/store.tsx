@@ -139,16 +139,22 @@ const useStore = create<StoreState>()(
           (t) => t.type === "expense" && t.date.startsWith(month)
         );
 
+        for (let category in monthBudgets) {
+          totalBudget += monthBudgets[category];
+        }
+
         // Sum up the budget and expenses for tags that have budgets
         currentMonthExpenses.forEach((expense) => {
           expense.tags.forEach((tag) => {
             if (monthBudgets[tag]) {
               totalSpent += expense.amount;
-              totalBudget += monthBudgets[tag];
+              // totalBudget += monthBudgets[tag];
             }
           });
         });
-
+        console.log(monthBudgets);
+        console.log(totalBudget);
+        console.log(totalSpent);
         // Check if total spent exceeds 90% of total budget
         if (totalBudget > 0 && totalSpent > totalBudget * 0.9) {
           try {
@@ -207,7 +213,7 @@ const useStore = create<StoreState>()(
             [month]: { ...state.budgets[month], ...tagBudgets },
           },
         }));
-        get().checkOverspending();
+        // get().checkOverspending();
       },
 
       addTag: (tag) =>

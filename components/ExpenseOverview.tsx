@@ -102,17 +102,7 @@ const ExpenseOverview = ({
                 width={450}
                 height={300}
                 colorScale={chartData.map((d) => d.color)}
-                // style={{
-                //   labels: {
-                //     fill: "#fbf1c7",
-                //     fontSize: 12,
-                //     fontFamily: "PlusJakartaSans",
-                //   },
-                // }}
                 innerRadius={65}
-                // labelRadius={({ radius }) =>
-                //   typeof radius === "number" ? radius - 10 : 0
-                // }
                 padding={40}
               />
             ) : (

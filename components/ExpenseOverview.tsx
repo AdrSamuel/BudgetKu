@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, ScrollView } from "react-native";
+import { VictoryPie } from "victory-native";
 import useStore from "@/store/store";
-import { PieChart } from "react-native-chart-kit";
 
 type Period = "day" | "week" | "month";
 
@@ -33,12 +33,10 @@ const ExpenseOverview = ({
 
       periodTransactions.forEach((transaction) => {
         if (transaction.type === "expense" && transaction.amount > 0) {
-          // Handle transactions with no tags
           const transactionTags = transaction.tags?.length
             ? transaction.tags
             : ["Other"];
 
-          // Split amount equally among tags
           const amountPerTag = transaction.amount / transactionTags.length;
 
           transactionTags.forEach((tag) => {
@@ -78,21 +76,19 @@ const ExpenseOverview = ({
     currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
     currencyFormatters["USD"];
 
-  // Filter and prepare chart data
+  // Prepare chart data
   const chartData = Object.entries(expenseData)
-    .filter(([_, amount]) => amount > 0) // Remove zero amounts
+    .filter(([_, amount]) => amount > 0)
     .map(([tag, amount]) => {
       const percentage = ((amount || 0) / (totalExpense || 1)) * 100;
       return {
-        name: `${tag} (${percentage.toFixed(1)}%)`,
-        amount: Math.max(amount, 1), // Ensure minimum value of 1
-        percentage,
+        x: tag,
+        y: amount,
+        label: `${tag}\n${percentage.toFixed(1)}%`,
         color: getTagColor(tag) || "#666666",
-        legendFontColor: "#fbf1c7",
-        legendFontSize: 12,
       };
     })
-    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+    .sort((a, b) => b.y - a.y);
 
   return (
     <ScrollView style={styles.expenseOverviewContainer}>
@@ -101,18 +97,23 @@ const ExpenseOverview = ({
         <>
           <View style={styles.chartContainer}>
             {chartData && chartData.length > 0 ? (
-              <PieChart
+              <VictoryPie
                 data={chartData}
-                width={350}
-                height={200}
-                chartConfig={{
-                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                }}
-                accessor="amount"
-                backgroundColor="transparent"
-                paddingLeft="0"
-                hasLegend={false} // Disable built-in legend
-                absolute // Use absolute values
+                width={450}
+                height={300}
+                colorScale={chartData.map((d) => d.color)}
+                // style={{
+                //   labels: {
+                //     fill: "#fbf1c7",
+                //     fontSize: 12,
+                //     fontFamily: "PlusJakartaSans",
+                //   },
+                // }}
+                innerRadius={65}
+                // labelRadius={({ radius }) =>
+                //   typeof radius === "number" ? radius - 10 : 0
+                // }
+                padding={40}
               />
             ) : (
               <Text style={styles.noExpensesText}>
@@ -122,13 +123,13 @@ const ExpenseOverview = ({
           </View>
           <View style={styles.detailsContainer}>
             {chartData.map((item) => (
-              <View key={item.name} style={styles.detailItem}>
+              <View key={item.x} style={styles.detailItem}>
                 <View
                   style={[styles.colorDot, { backgroundColor: item.color }]}
                 />
-                <Text style={styles.detailText}>{item.name}</Text>
+                <Text style={styles.detailText}>{item.x}</Text>
                 <Text style={styles.detailText}>
-                  {formatter.format(item.amount)}
+                  {formatter.format(item.y)}
                 </Text>
               </View>
             ))}
@@ -156,7 +157,6 @@ const styles = StyleSheet.create({
   },
   expenseOverviewTitle: {
     fontSize: 20,
-    // fontWeight: "bold",
     color: "#fbf1c7",
     marginBottom: 16,
     textAlign: "center",
@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
   },
   totalText: {
     fontSize: 16,
-    // fontWeight: "bold",
     color: "#fbf1c7",
     textAlign: "center",
     fontFamily: "PlusJakartaSans",

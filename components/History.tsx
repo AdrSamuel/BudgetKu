@@ -30,6 +30,15 @@ const History = ({
     tags,
   } = useStore();
 
+  const currencyFormatters = {
+    IDR: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }),
+    USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }),
+  };
+
+  const formatter =
+    currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
+    currencyFormatters["USD"];
+
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<{
@@ -122,8 +131,7 @@ const History = ({
             item.type === "income" ? styles.detailsGreen : styles.detailsRed,
           ]}
         >
-          {selectedCurrency === "IDR" ? "Rp" : "$"}
-          {item.amount.toFixed(2)}
+          {formatter.format(item.amount)}
         </Text>
       </View>
       <View style={styles.transactionActions}>

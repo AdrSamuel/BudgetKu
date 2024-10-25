@@ -1,12 +1,5 @@
 import React, { useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Switch,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { StyleSheet, Text, View, Switch, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useStore from "@/store/store";
 import * as Notifications from "expo-notifications";
@@ -37,9 +30,9 @@ const Notif = () => {
       return;
     }
   };
-  const testNotification = async () => {
-    await scheduleDailyReminder();
-  };
+  // const testNotification = async () => {
+  //   await scheduleDailyReminder();
+  // };
 
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top }]}>

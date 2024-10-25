@@ -23,46 +23,76 @@ const ExpenseOverview = ({
   const [totalExpense, setTotalExpense] = useState(0);
 
   useEffect(() => {
-    const periodTransactions = getTransactionsByPeriod(
-      selectedPeriod,
-      currentDate.toISOString()
-    );
-    const expenseByTag: { [tag: string]: number } = {};
-    let total = 0;
+    try {
+      const periodTransactions = getTransactionsByPeriod(
+        selectedPeriod,
+        currentDate.toISOString()
+      );
+      const expenseByTag: { [tag: string]: number } = {};
+      let total = 0;
 
-    periodTransactions.forEach((transaction) => {
-      if (transaction.type === "expense") {
-        transaction.tags.forEach((tag) => {
-          expenseByTag[tag] = (expenseByTag[tag] || 0) + transaction.amount;
-        });
-        total += transaction.amount;
-      }
-    });
+      periodTransactions.forEach((transaction) => {
+        if (transaction.type === "expense" && transaction.amount > 0) {
+          // Handle transactions with no tags
+          const transactionTags = transaction.tags?.length
+            ? transaction.tags
+            : ["Other"];
 
-    setExpenseData(expenseByTag);
-    setTotalExpense(total);
+          // Split amount equally among tags
+          const amountPerTag = transaction.amount / transactionTags.length;
+
+          transactionTags.forEach((tag) => {
+            expenseByTag[tag] = Math.round(
+              (expenseByTag[tag] || 0) + amountPerTag
+            );
+          });
+          total += transaction.amount;
+        }
+      });
+
+      setExpenseData(expenseByTag);
+      setTotalExpense(Math.round(total));
+    } catch (error) {
+      console.error("Error processing transactions:", error);
+      setExpenseData({});
+      setTotalExpense(0);
+    }
   }, [getTransactionsByPeriod, selectedPeriod, currentDate, transactions]);
 
   const currencyFormatters = {
-    IDR: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }),
-    USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }),
+    IDR: new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }),
+    USD: new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
   };
 
   const formatter =
     currencyFormatters[selectedCurrency as "IDR" | "USD"] ||
     currencyFormatters["USD"];
 
-  const chartData = Object.entries(expenseData).map(([tag, amount]) => {
-    const percentage = (amount / totalExpense) * 100;
-    return {
-      name: `${tag} (${percentage.toFixed(1)}%)`,
-      amount,
-      percentage,
-      color: getTagColor(tag),
-      legendFontColor: "#fbf1c7",
-      legendFontSize: 12,
-    };
-  });
+  // Filter and prepare chart data
+  const chartData = Object.entries(expenseData)
+    .filter(([_, amount]) => amount > 0) // Remove zero amounts
+    .map(([tag, amount]) => {
+      const percentage = ((amount || 0) / (totalExpense || 1)) * 100;
+      return {
+        name: `${tag} (${percentage.toFixed(1)}%)`,
+        amount: Math.max(amount, 1), // Ensure minimum value of 1
+        percentage,
+        color: getTagColor(tag) || "#666666",
+        legendFontColor: "#fbf1c7",
+        legendFontSize: 12,
+      };
+    })
+    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
 
   return (
     <ScrollView style={styles.expenseOverviewContainer}>
@@ -70,17 +100,25 @@ const ExpenseOverview = ({
       {totalExpense > 0 ? (
         <>
           <View style={styles.chartContainer}>
-            <PieChart
-              data={chartData}
-              width={350}
-              height={200}
-              chartConfig={{
-                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              }}
-              accessor="amount"
-              backgroundColor="transparent"
-              paddingLeft="0"
-            />
+            {chartData && chartData.length > 0 ? (
+              <PieChart
+                data={chartData}
+                width={350}
+                height={200}
+                chartConfig={{
+                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                }}
+                accessor="amount"
+                backgroundColor="transparent"
+                paddingLeft="0"
+                hasLegend={false} // Disable built-in legend
+                absolute // Use absolute values
+              />
+            ) : (
+              <Text style={styles.noExpensesText}>
+                No data available for chart
+              </Text>
+            )}
           </View>
           <View style={styles.detailsContainer}>
             {chartData.map((item) => (
@@ -111,55 +149,32 @@ const ExpenseOverview = ({
 };
 
 const styles = StyleSheet.create({
-  // New styles for Expense Overview
   expenseOverviewContainer: {
     flex: 1,
-    padding: 20,
+    padding: 16,
+    marginBottom: 75,
   },
   expenseOverviewTitle: {
-    fontFamily: "PlusJakartaSans",
-    fontSize: 24,
+    fontSize: 20,
+    // fontWeight: "bold",
     color: "#fbf1c7",
-    marginBottom: 20,
+    marginBottom: 16,
+    textAlign: "center",
+    fontFamily: "PlusJakartaSans",
   },
   chartContainer: {
     alignItems: "center",
-    marginBottom: 20,
-  },
-  legendContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 20,
-    marginBottom: 10,
-  },
-  colorBox: {
-    width: 20,
-    height: 20,
-    marginRight: 5,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontFamily: "PlusJakartaSans",
-    fontSize: 14,
-    color: "#fbf1c7",
+    marginVertical: 16,
   },
   detailsContainer: {
-    marginTop: 20,
+    marginTop: 16,
+    fontFamily: "PlusJakartaSans",
   },
   detailItem: {
-    marginBottom: 15,
-  },
-  detailText: {
-    fontFamily: "PlusJakartaSans",
-    fontSize: 16,
-    color: "#fbf1c7",
-    marginBottom: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   colorDot: {
     width: 12,
@@ -167,33 +182,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 8,
   },
-  barContainer: {
-    height: 10,
-    backgroundColor: "#3c3836",
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  bar: {
-    height: "100%",
-    borderRadius: 5,
+  detailText: {
+    flex: 1,
+    color: "#fbf1c7",
+    fontSize: 14,
   },
   totalContainer: {
     marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#fbf1c7",
-    paddingTop: 8,
-    marginBottom: 80,
+    borderTopColor: "#45474a",
   },
   totalText: {
     fontSize: 16,
+    // fontWeight: "bold",
     color: "#fbf1c7",
+    textAlign: "center",
     fontFamily: "PlusJakartaSans",
   },
   noExpensesText: {
-    fontSize: 16,
     color: "#fbf1c7",
+    fontSize: 16,
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 32,
+    fontFamily: "PlusJakartaSans",
   },
 });
 

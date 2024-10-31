@@ -13,6 +13,10 @@ BudgetKu is your simple, intuitive, and powerful personal finance management app
 3. Tags for Easy Categorization
    Organize your expenses with customizable tags. Whether it's groceries, entertainment, or bills, add tags to each transaction for clearer insights.
 
+## APK Installation Link
+
+https://bit.ly/m/BudgetKu
+
 ## Get started
 
 1. Install git
@@ -37,10 +41,10 @@ BudgetKu is your simple, intuitive, and powerful personal finance management app
     nvm use lts
    ```
 
-4. Download expo
+4. Go to the file directory, then run this for downloading dependencies
 
    ```
-    npm install expo
+    npm install
    ```
 
 5. Run on your Expo Go
